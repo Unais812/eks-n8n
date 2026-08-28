@@ -11,20 +11,14 @@ resource "aws_eks_cluster" "eks-cluster" {
   version  = var.version-k8s
 
   vpc_config {
-    subnet_ids = [
-      var.private-subnet-1,
-    ]
+    subnet_ids = [var.private-subnets]
   }
 
   # Ensure that IAM Role permissions are created before and deleted
   # after EKS Cluster handling. Otherwise, EKS will not be able to
   # properly delete EKS managed EC2 infrastructure such as Security Groups.
   depends_on = [
-    aws_iam_role_policy_attachment.cluster_AmazonEKSComputePolicy,
-    aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy,
-    aws_iam_role_policy_attachment.cluster_AmazonEKSBlockStoragePolicy,
-    aws_iam_role_policy_attachment.cluster_AmazonEKSLoadBalancingPolicy,
-    aws_iam_role_policy_attachment.cluster_AmazonEKSNetworkingPolicy
+    aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy
   ]
 }
 
@@ -54,8 +48,8 @@ resource "aws_eks_addon" "eks-pod-identity-agent" {
 resource "aws_eks_node_group" "eks-node-group" {
   cluster_name    = aws_eks_cluster.eks-cluster.name
   node_group_name = "eks-node-group"
-  node_role_arn   = aws_iam_role.eks-node-role.arn
-  subnet_ids      = [var.private-subnet-1]
+  node_role_arn   = var.eks-node-group-role
+  subnet_ids      = [var.private-subnets]
   ami_type        = var.ami
   instance_types  = [var.instance-type]
 
@@ -73,7 +67,18 @@ resource "aws_eks_node_group" "eks-node-group" {
   # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
     aws_iam_role_policy_attachment.node-policy-ec2,
-    aws_iam_role_policy_attachment.node-policy-EKS_CNI,
     aws_iam_role_policy_attachment.node-policy-ec2_registry,
+  ]
+}
+
+resource "aws_eks_pod_identity_association" "vpc-cni" {
+  cluster_name    = aws_eks_cluster.eks-cluster.name
+  namespace       = "kube-system"
+  service_account = "aws-node"
+  role_arn        = var.vpc-cni-role
+
+  depends_on = [
+    aws_eks_addon.eks-pod-identity-agent,
+    aws_eks_addon.vpc-cni
   ]
 }
