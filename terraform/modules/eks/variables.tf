@@ -4,11 +4,6 @@ variable "version-k8s" {
   default     = "1.36"
 }
 
-variable "private-subnet-1" {
-  description = "id of the first private subnet"
-  type        = string
-}
-
 variable "vpc-id" {
   description = "id of the vpc for cluster"
   type        = string
@@ -48,4 +43,18 @@ variable "region" {
   description = "region to include for cloudwatch"
   type        = string
   default     = "eu-north-1"
+}
+
+variable "vpc-cni-role" {
+  description = "role for the vpc cni pod identity agent"
+  type = string
+}
+
+variable "private-subnets" {
+  description = "the ids of the private subnets"
+}
+
+variable "eks-node-group-role" {
+  description = "iam role of the eks node group"
+  type = string
 }
