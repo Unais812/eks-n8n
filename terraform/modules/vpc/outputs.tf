@@ -10,9 +10,6 @@ output "private_subnet_ids" {
   ]
 }
 
-# loops through the locals block and determines wether it is a private subnet or public,
-# it also outputs the id for them so i can reference in another module 
-
 output "public_subnet_ids" {
   value = [
     for k, subnet in aws_subnet.subnets :
