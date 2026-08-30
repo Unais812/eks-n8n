@@ -50,11 +50,39 @@ variable "vpc-cni-role" {
   type = string
 }
 
-variable "private-subnets" {
-  description = "the ids of the private subnets"
+variable "private-subnet-1" {
+  description = "id of private subnet"
+  type = string
+}
+
+variable "private-subnet-2" {
+  description = "id of private subnet"
+  type = string
 }
 
 variable "eks-node-group-role" {
   description = "iam role of the eks node group"
   type = string
+}
+
+variable "eks-cluster-role" {
+  description = "role of the eks cluster"
+  type = string
+}
+
+variable "eks-role-attachment" {
+  description = "policy attachment for the depends on in eks cluster config"
+}
+
+variable "node-group-ec2-attachment" {
+  description = "policy attachment for the depends on argument for node group"
+}
+
+variable "node-group-ecr-attachment" {
+  description = "policy attachment for the depends on argument for node group"
+}
+
+variable "ebs_csi_driver_role_arn" {
+  description = "IAM role ARN used by the EFS CSI controller through EKS Pod Identity"
+  type        = string
 }
