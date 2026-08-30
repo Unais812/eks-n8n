@@ -8,16 +8,44 @@ resource "aws_vpc" "n8n-vpc" {
     }
 }
 
-resource "aws_subnet" "subnets" {
+resource "aws_subnet" "public-1" {
     vpc_id = aws_vpc.n8n-vpc.id
-    for_each = local.subnets
-    cidr_block = each.value.cidr
-    availability_zone = each.value.az
-    map_public_ip_on_launch = each.value.public
-
+    cidr_block = var.public-subnet-1-cidr
+    availability_zone = var.az1
 
     tags = {
-      Name = "${local.name}-${each.key}"
+      Name = "public-subnet-1"
+    }
+}
+
+resource "aws_subnet" "private-1" {
+    vpc_id = aws_vpc.n8n-vpc.id
+    cidr_block = var.private-subnet-1-cidr
+    availability_zone = var.az1
+    
+
+    tags = {
+      Name = "private-subnet-1"
+    }
+}
+
+resource "aws_subnet" "public-2" {
+    vpc_id = aws_vpc.n8n-vpc.id
+    cidr_block = var.public-subnet-2-cidr
+    availability_zone = var.az2
+
+    tags = {
+      Name = "public-subnet-2"
+    }
+}
+
+resource "aws_subnet" "private-2" {
+    vpc_id = aws_vpc.n8n-vpc.id
+    cidr_block = var.private-subnet-2-cidr
+    availability_zone = var.az2
+
+    tags = {
+      Name = "private-subnet-2"
     }
 }
 
@@ -30,8 +58,7 @@ resource "aws_internet_gateway" "igw" {
 }
 
 resource "aws_nat_gateway" "n8n-nat" {
-  for_each = { for k, v in local.subnets : k => v if v.public }
-  subnet_id = aws_subnet.subnets[each.key].id
+  subnet_id = aws_subnet.public-1.id
   allocation_id = aws_eip.nat.id
 
   tags = {
@@ -40,11 +67,10 @@ resource "aws_nat_gateway" "n8n-nat" {
 
   # To ensure proper ordering, it is recommended to add an explicit dependency
   # on the Internet Gateway for the VPC.
-  depends_on = [aws_internet_gateway.igw.id]
+  depends_on = [aws_internet_gateway.igw]
 }
 
 resource "aws_eip" "nat" {
-  depends_on = [aws_internet_gateway.igw.id]
 }
 
 resource "aws_route_table" "public-route-table" {
@@ -60,10 +86,14 @@ resource "aws_route_table" "public-route-table" {
   }
 }
 
-resource "aws_route_table_association" "public" {
-  for_each = { for k, v in local.subnets : k => v if v.public } # Filter local.subnets down to only public subnets and loop over the result
+resource "aws_route_table_association" "public-1" {
   route_table_id = aws_route_table.public-route-table.id
-  subnet_id = aws_subnet.subnets[each.key].id
+  subnet_id = aws_subnet.public-1.id
+}
+
+resource "aws_route_table_association" "public-2" {
+  route_table_id = aws_route_table.public-route-table.id
+  subnet_id = aws_subnet.public-2.id
 }
 
 resource "aws_route_table" "private-route-table" {
@@ -79,10 +109,14 @@ resource "aws_route_table" "private-route-table" {
   }
 }
 
-resource "aws_route_table_association" "private" {
-  for_each = { for k, v in local.subnets : k => v if !v.public }
+resource "aws_route_table_association" "private-1" {
   route_table_id = aws_route_table.private-route-table.id
-  subnet_id = aws_subnet.subnets[each.key].id # loops through each key in the locals block to associate each subnet, the for_each block already identified which subnets to use
+  subnet_id = aws_subnet.private-1.id
+}
+
+resource "aws_route_table_association" "private-2" {
+  route_table_id = aws_route_table.private-route-table.id
+  subnet_id = aws_subnet.private-2.id
 }
 
 resource "aws_security_group" "vpc-sg" {
