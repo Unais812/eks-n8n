@@ -7,18 +7,18 @@ resource "aws_eks_cluster" "eks-cluster" {
     bootstrap_cluster_creator_admin_permissions = true
   }
 
-  role_arn = aws_iam_role.eks-cluster-role.arn
+  role_arn = var.eks-cluster-role
   version  = var.version-k8s
 
   vpc_config {
-    subnet_ids = [var.private-subnets]
+    subnet_ids = [var.private-subnet-1, var.private-subnet-2]
   }
 
   # Ensure that IAM Role permissions are created before and deleted
   # after EKS Cluster handling. Otherwise, EKS will not be able to
   # properly delete EKS managed EC2 infrastructure such as Security Groups.
   depends_on = [
-    aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy
+    var.eks-role-attachment
   ]
 }
 
@@ -45,11 +45,18 @@ resource "aws_eks_addon" "eks-pod-identity-agent" {
   resolve_conflicts_on_update = "OVERWRITE"
 }
 
+resource "aws_eks_addon" "ebs_csi_driver" {
+  cluster_name = aws_eks_cluster.eks-cluster.name
+  addon_name   = "aws-ebs-csi-driver"
+  resolve_conflicts_on_create = "OVERWRITE"
+}
+
+
 resource "aws_eks_node_group" "eks-node-group" {
   cluster_name    = aws_eks_cluster.eks-cluster.name
   node_group_name = "eks-node-group"
   node_role_arn   = var.eks-node-group-role
-  subnet_ids      = [var.private-subnets]
+  subnet_ids      = [var.private-subnet-1, var.private-subnet-2]
   ami_type        = var.ami
   instance_types  = [var.instance-type]
 
@@ -66,8 +73,8 @@ resource "aws_eks_node_group" "eks-node-group" {
   # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
   # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
-    aws_iam_role_policy_attachment.node-policy-ec2,
-    aws_iam_role_policy_attachment.node-policy-ec2_registry,
+    var.node-group-ec2-attachment,
+    var.node-group-ecr-attachment
   ]
 }
 
@@ -80,5 +87,17 @@ resource "aws_eks_pod_identity_association" "vpc-cni" {
   depends_on = [
     aws_eks_addon.eks-pod-identity-agent,
     aws_eks_addon.vpc-cni
+  ]
+}
+
+resource "aws_eks_pod_identity_association" "ebs_csi_driver" {
+  cluster_name    = aws_eks_cluster.eks-cluster.name
+  namespace       = "kube-system"
+  service_account = "ebs-csi-controller-sa"
+  role_arn        = var.ebs_csi_driver_role_arn
+
+  depends_on = [
+    aws_eks_addon.eks-pod-identity-agent,
+    aws_eks_addon.ebs_csi_driver
   ]
 }
